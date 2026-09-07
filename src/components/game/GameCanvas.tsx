@@ -12,7 +12,7 @@ import {
   trackAngle,
   type Difficulty,
 } from "@/game/track";
-import { sfx } from "@/game/audio";
+import { sfx, startEngine, stopEngine, updateEngine } from "@/game/audio";
 
 type Props = {
   onFinish: (time: number, won: boolean) => void;
