@@ -76,6 +76,7 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
         e.code === "Space"
       )
         e.preventDefault();
+      if (e.code === "KeyH" && !keys.has("KeyH")) sfx.horn();
       keys.add(e.code);
     };
     const up = (e: KeyboardEvent) => keys.delete(e.code);
