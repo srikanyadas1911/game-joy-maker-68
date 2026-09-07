@@ -197,6 +197,8 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
         if (p.life <= 0) smoke.splice(i, 1);
       }
 
+      if (!finished) updateEngine(Math.min(1, Math.abs(car.speed) / CAR.maxSpeed), nitroLeft > 0);
+
       shakeRef.current = Math.max(0, shakeRef.current - dt * 1.2);
       setHud({
         time,
