@@ -61,3 +61,12 @@ export const DECOR = [
   { x: TRACK.a + 250, y: -60, kind: "cone" },
   { x: 120, y: TRACK.b + 250, kind: "sign" },
 ] as const;
+
+export type Difficulty = "easy" | "medium" | "hard";
+
+/** Bot roller pace, in pixels per second along the centerline. */
+export const BOT_SPEED: Record<Difficulty, number> = {
+  easy: 140,
+  medium: 195,
+  hard: 245,
+};
