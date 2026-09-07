@@ -178,6 +178,7 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
       const goal = Math.PI * 2 * TRACK.laps;
       if (!finished && (progress >= goal || botProgress >= goal)) {
         finished = true;
+        stopEngine();
         sfx.finish();
         onFinish(time, progress >= goal);
       }
