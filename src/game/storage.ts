@@ -19,3 +19,25 @@ export function saveResult(time: number, bestTime: number | null) {
     window.localStorage.setItem(KEY_BEST, String(time));
   }
 }
+
+const KEY_DIFF = "jcb_difficulty";
+const KEY_MUTED = "jcb_muted";
+
+export function loadDifficulty(): "easy" | "medium" | "hard" {
+  if (typeof window === "undefined") return "medium";
+  const v = window.localStorage.getItem(KEY_DIFF);
+  return v === "easy" || v === "hard" ? v : "medium";
+}
+
+export function saveDifficulty(v: string) {
+  if (typeof window !== "undefined") window.localStorage.setItem(KEY_DIFF, v);
+}
+
+export function loadMuted(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(KEY_MUTED) === "1";
+}
+
+export function saveMuted(v: boolean) {
+  if (typeof window !== "undefined") window.localStorage.setItem(KEY_MUTED, v ? "1" : "0");
+}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  BOT_SPEED,
   CAR,
   CONES,
   DECOR,
@@ -9,14 +10,16 @@ import {
   centerlinePoint,
   onTrack,
   trackAngle,
+  type Difficulty,
 } from "@/game/track";
 import { sfx } from "@/game/audio";
 
 type Props = {
-  onFinish: (time: number) => void;
+  onFinish: (time: number, won: boolean) => void;
+  difficulty: Difficulty;
 };
 
-type Hud = { time: number; lap: number; nitro: number; boosting: boolean; speed: number };
+type Hud = { time: number; lap: number; nitro: number; boosting: boolean; speed: number; ahead: boolean };
 
 const PALETTE = {
   grass: "#5fbf52",
@@ -31,11 +34,22 @@ const PALETTE = {
   drum: "#3d4148",
   cab: "#2b2f36",
   glass: "#bfe6ff",
+  bot: "#ff5d5d",
+  botDark: "#d63d3d",
 };
 
-export default function GameCanvas({ onFinish }: Props) {
+export default function GameCanvas({ onFinish, difficulty }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [hud, setHud] = useState<Hud>({ time: 0, lap: 1, nitro: 1, boosting: false, speed: 0 });
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const touch = useRef({ left: false, right: false, up: false, down: false, nitro: false });
+  const [hud, setHud] = useState<Hud>({
+    time: 0,
+    lap: 1,
+    nitro: 1,
+    boosting: false,
+    speed: 0,
+    ahead: true,
+  });
   const shakeRef = useRef(0);
 
   useEffect(() => {
@@ -44,10 +58,19 @@ export default function GameCanvas({ onFinish }: Props) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    wrapRef.current?.focus();
+
     const keys = new Set<string>();
+    const held = {
+      up: () => keys.has("ArrowUp") || keys.has("KeyW") || touch.current.up,
+      down: () => keys.has("ArrowDown") || keys.has("KeyS") || touch.current.down,
+      left: () => keys.has("ArrowLeft") || keys.has("KeyA") || touch.current.left,
+      right: () => keys.has("ArrowRight") || keys.has("KeyD") || touch.current.right,
+      nitro: () => keys.has("Space") || touch.current.nitro,
+    };
     const down = (e: KeyboardEvent) => {
       if (
-        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " ", "Space"].includes(e.key) ||
+        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) ||
         e.code === "Space"
       )
         e.preventDefault();
@@ -74,6 +97,12 @@ export default function GameCanvas({ onFinish }: Props) {
     let prev = performance.now();
     const smoke: { x: number; y: number; life: number }[] = [];
 
+    // opponent roller
+    const botLane = 0.82; // slightly inside the centerline
+    let botProgress = 0;
+    const avgR = (TRACK.a + TRACK.b) / 2;
+    const botOmega = BOT_SPEED[difficulty] / avgR;
+
     const loop = (now: number) => {
       const dt = Math.min((now - prev) / 1000, 0.05);
       prev = now;
@@ -81,7 +110,7 @@ export default function GameCanvas({ onFinish }: Props) {
 
       // --- input ---
       const boosting = nitroLeft > 0;
-      if ((keys.has("Space") || keys.has("Spacebar")) && !boosting && nitroCharge >= 1) {
+      if (held.nitro() && !boosting && nitroCharge >= 1) {
         nitroLeft = NITRO.duration;
         nitroCharge = 0;
         shakeRef.current = 1;
@@ -93,8 +122,8 @@ export default function GameCanvas({ onFinish }: Props) {
       const boost = nitroLeft > 0 ? CAR.nitroMultiplier : 1;
       const grip = onTrack(car.x, car.y) ? 1 : 0.45;
 
-      if (keys.has("ArrowUp")) car.speed += CAR.accel * boost * grip * dt;
-      else if (keys.has("ArrowDown")) {
+      if (held.up()) car.speed += CAR.accel * boost * grip * dt;
+      else if (held.down()) {
         car.speed -= (car.speed > 0 ? CAR.brake : CAR.reverseAccel) * dt;
       } else {
         car.speed -= car.speed * CAR.drag * dt;
@@ -105,8 +134,8 @@ export default function GameCanvas({ onFinish }: Props) {
       );
 
       const steerAmount = CAR.steer * Math.min(1, Math.abs(car.speed) / 90) * Math.sign(car.speed || 1);
-      if (keys.has("ArrowLeft")) car.heading -= steerAmount * dt;
-      if (keys.has("ArrowRight")) car.heading += steerAmount * dt;
+      if (held.left()) car.heading -= steerAmount * dt;
+      if (held.right()) car.heading += steerAmount * dt;
 
       const nx = car.x + Math.cos(car.heading) * car.speed * dt;
       const ny = car.y + Math.sin(car.heading) * car.speed * dt;
@@ -129,10 +158,25 @@ export default function GameCanvas({ onFinish }: Props) {
       progress += d;
       lastAngle = ang;
       const lap = Math.min(TRACK.laps, Math.floor(progress / (Math.PI * 2)) + 1);
-      if (!finished && progress >= Math.PI * 2 * TRACK.laps) {
+
+      // --- bot ---
+      if (!finished) botProgress += botOmega * dt;
+      const botAng = START_ANGLE + botProgress;
+      const botPos = {
+        x: Math.cos(botAng) * (TRACK.a - TRACK.w * (1 - botLane) * 3),
+        y: Math.sin(botAng) * (TRACK.b - TRACK.w * (1 - botLane) * 3),
+      };
+      const botNext = {
+        x: Math.cos(botAng + 0.01) * TRACK.a,
+        y: Math.sin(botAng + 0.01) * TRACK.b,
+      };
+      const botHeading = Math.atan2(botNext.y - botPos.y, botNext.x - botPos.x);
+
+      const goal = Math.PI * 2 * TRACK.laps;
+      if (!finished && (progress >= goal || botProgress >= goal)) {
         finished = true;
         sfx.finish();
-        onFinish(time);
+        onFinish(time, progress >= goal);
       }
 
       // --- particles ---
@@ -149,7 +193,6 @@ export default function GameCanvas({ onFinish }: Props) {
         if (p.life <= 0) smoke.splice(i, 1);
       }
 
-
       shakeRef.current = Math.max(0, shakeRef.current - dt * 1.2);
       setHud({
         time,
@@ -157,9 +200,10 @@ export default function GameCanvas({ onFinish }: Props) {
         nitro: nitroLeft > 0 ? nitroLeft / NITRO.duration : nitroCharge,
         boosting: nitroLeft > 0,
         speed: car.speed,
+        ahead: progress >= botProgress,
       });
 
-      draw(ctx, canvas, car, smoke, nitroLeft > 0);
+      draw(ctx, canvas, car, smoke, nitroLeft > 0, { ...botPos, heading: botHeading });
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -169,15 +213,21 @@ export default function GameCanvas({ onFinish }: Props) {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
     };
-  }, [onFinish]);
+  }, [onFinish, difficulty]);
 
-  const shake = hud.boosting ? 1 : 0;
+  const press = (k: keyof typeof touch.current, v: boolean) => () => {
+    touch.current[k] = v;
+  };
+
+  const padBtn =
+    "select-none rounded-2xl border-4 border-border bg-panel/95 px-6 py-4 font-display text-2xl text-foreground shadow-toy active:translate-y-1 active:shadow-none";
 
   return (
     <div className="relative w-full">
       <div
-        className="overflow-hidden rounded-[2rem] border-4 border-border/60 shadow-toy"
-        style={{ transform: shake ? "translate3d(0,0,0)" : undefined }}
+        ref={wrapRef}
+        tabIndex={-1}
+        className="overflow-hidden rounded-[2rem] border-4 border-border/60 shadow-toy outline-none"
       >
         <canvas
           ref={canvasRef}
@@ -194,6 +244,12 @@ export default function GameCanvas({ onFinish }: Props) {
             <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Time</p>
             <p className="font-display text-3xl leading-none text-foreground">
               {hud.time.toFixed(1)}s
+            </p>
+          </div>
+          <div className="rounded-2xl bg-panel/90 px-4 py-3 text-center shadow-toy backdrop-blur">
+            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Rival</p>
+            <p className="font-display text-xl leading-none text-foreground">
+              {hud.ahead ? "🥇 You lead" : "🥈 Catch up!"}
             </p>
           </div>
           <div className="rounded-2xl bg-construction px-5 py-3 text-construction-foreground shadow-toy">
@@ -227,6 +283,64 @@ export default function GameCanvas({ onFinish }: Props) {
           </div>
         </div>
       </div>
+
+      {/* touch controls */}
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <div className="flex gap-3">
+          <button
+            aria-label="Steer left"
+            className={padBtn}
+            onPointerDown={press("left", true)}
+            onPointerUp={press("left", false)}
+            onPointerLeave={press("left", false)}
+            onPointerCancel={press("left", false)}
+          >
+            ◀
+          </button>
+          <button
+            aria-label="Steer right"
+            className={padBtn}
+            onPointerDown={press("right", true)}
+            onPointerUp={press("right", false)}
+            onPointerLeave={press("right", false)}
+            onPointerCancel={press("right", false)}
+          >
+            ▶
+          </button>
+        </div>
+        <div className="flex gap-3">
+          <button
+            aria-label="Brake or reverse"
+            className={padBtn}
+            onPointerDown={press("down", true)}
+            onPointerUp={press("down", false)}
+            onPointerLeave={press("down", false)}
+            onPointerCancel={press("down", false)}
+          >
+            ▼
+          </button>
+          <button
+            aria-label="Drive forward"
+            className={padBtn}
+            onPointerDown={press("up", true)}
+            onPointerUp={press("up", false)}
+            onPointerLeave={press("up", false)}
+            onPointerCancel={press("up", false)}
+          >
+            ▲
+          </button>
+          <button
+            aria-label="Nitro boost"
+            className={`${padBtn} bg-construction text-construction-foreground`}
+            onPointerDown={press("nitro", true)}
+            onPointerUp={press("nitro", false)}
+            onPointerLeave={press("nitro", false)}
+            onPointerCancel={press("nitro", false)}
+          >
+            🔥
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -239,6 +353,7 @@ function draw(
   car: { x: number; y: number; heading: number; speed: number },
   smoke: { x: number; y: number; life: number }[],
   boosting: boolean,
+  bot: { x: number; y: number; heading: number },
 ) {
   const W = canvas.width;
   const H = canvas.height;
@@ -318,7 +433,8 @@ function draw(
   });
   ctx.globalAlpha = 1;
 
-  drawRoller(ctx, car, boosting);
+  drawRoller(ctx, bot, false, PALETTE.bot, PALETTE.botDark);
+  drawRoller(ctx, car, boosting, PALETTE.body, PALETTE.bodyDark);
   ctx.restore();
 
   // sky-ish vignette + clouds fixed to camera edges
@@ -397,6 +513,8 @@ function drawRoller(
   ctx: CanvasRenderingContext2D,
   car: { x: number; y: number; heading: number },
   boosting: boolean,
+  bodyColor = PALETTE.body,
+  bodyDarkColor = PALETTE.bodyDark,
 ) {
   ctx.save();
   ctx.translate(car.x, car.y);
@@ -429,10 +547,10 @@ function drawRoller(
   ctx.fill();
 
   // body
-  ctx.fillStyle = PALETTE.bodyDark;
+  ctx.fillStyle = bodyDarkColor;
   roundRect(ctx, -24, -34, 48, 58, 12);
   ctx.fill();
-  ctx.fillStyle = PALETTE.body;
+  ctx.fillStyle = bodyColor;
   roundRect(ctx, -21, -36, 42, 54, 12);
   ctx.fill();
 
