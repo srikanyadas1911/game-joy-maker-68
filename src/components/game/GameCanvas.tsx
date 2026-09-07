@@ -59,6 +59,8 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
     if (!ctx) return;
 
     wrapRef.current?.focus();
+    startEngine();
+    sfx.vroom();
 
     const keys = new Set<string>();
     const held = {
