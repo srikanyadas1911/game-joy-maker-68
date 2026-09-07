@@ -155,3 +155,27 @@
     color: var(--color-foreground);
   }
 }
+
+:root {
+  --construction: oklch(0.83 0.17 85);
+  --construction-foreground: oklch(0.25 0.05 60);
+  --nitro: oklch(0.72 0.2 45);
+  --grass: oklch(0.72 0.17 145);
+  --sky: oklch(0.86 0.08 230);
+  --panel: oklch(0.99 0.012 90);
+  --shadow-toy: 0 10px 0 -2px oklch(0.55 0.06 70 / 0.28), 0 18px 34px -12px oklch(0.3 0.05 60 / 0.45);
+  --shadow-glow: 0 0 0 4px oklch(0.83 0.17 85 / 0.35), 0 0 42px oklch(0.72 0.2 45 / 0.6);
+}
+
+@keyframes shake {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-1.5px, 1px); }
+  50% { transform: translate(1.5px, -1px); }
+  75% { transform: translate(-1px, -1.5px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-12px) rotate(1.5deg); }
+}
