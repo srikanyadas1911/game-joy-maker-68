@@ -12,7 +12,7 @@ import {
   trackAngle,
   type Difficulty,
 } from "@/game/track";
-import { sfx } from "@/game/audio";
+import { sfx, startEngine, stopEngine, updateEngine } from "@/game/audio";
 
 type Props = {
   onFinish: (time: number, won: boolean) => void;
@@ -59,6 +59,8 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
     if (!ctx) return;
 
     wrapRef.current?.focus();
+    startEngine();
+    sfx.vroom();
 
     const keys = new Set<string>();
     const held = {
@@ -74,6 +76,7 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
         e.code === "Space"
       )
         e.preventDefault();
+      if (e.code === "KeyH" && !keys.has("KeyH")) sfx.horn();
       keys.add(e.code);
     };
     const up = (e: KeyboardEvent) => keys.delete(e.code);
@@ -175,6 +178,7 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
       const goal = Math.PI * 2 * TRACK.laps;
       if (!finished && (progress >= goal || botProgress >= goal)) {
         finished = true;
+        stopEngine();
         sfx.finish();
         onFinish(time, progress >= goal);
       }
@@ -192,6 +196,8 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
         p.life -= dt * 2;
         if (p.life <= 0) smoke.splice(i, 1);
       }
+
+      if (!finished) updateEngine(Math.min(1, Math.abs(car.speed) / CAR.maxSpeed), nitroLeft > 0);
 
       shakeRef.current = Math.max(0, shakeRef.current - dt * 1.2);
       setHud({
