@@ -144,9 +144,11 @@ export default function GameCanvas({ onFinish }: Props) {
         });
       }
       for (let i = smoke.length - 1; i >= 0; i--) {
-        smoke[i].life -= dt * 2;
-        if (smoke[i].life <= 0) smoke.splice(i, 1);
+        const p = smoke[i]!;
+        p.life -= dt * 2;
+        if (p.life <= 0) smoke.splice(i, 1);
       }
+
 
       shakeRef.current = Math.max(0, shakeRef.current - dt * 1.2);
       setHud({
