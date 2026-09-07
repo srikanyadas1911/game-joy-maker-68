@@ -386,10 +386,10 @@ function drawSign(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.closePath();
   ctx.fill();
   ctx.fillStyle = "#2b2f36";
-  ctx.font = "bold 26px system-ui";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("🚧", 0, 2);
+  ctx.fillRect(-4, -16, 8, 20);
+  ctx.beginPath();
+  ctx.arc(0, 14, 5, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 
