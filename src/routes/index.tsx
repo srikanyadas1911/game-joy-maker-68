@@ -1,16 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import GameCanvas from "@/components/game/GameCanvas";
 import {
   loadBestTime,
   loadDifficulty,
+  loadMusic,
   loadMuted,
   loadRaces,
   saveDifficulty,
+  saveMusic,
   saveMuted,
   saveResult,
 } from "@/game/storage";
-import { sfx, setMuted } from "@/game/audio";
+import { sfx, setMuted, setMusicEnabled } from "@/game/audio";
 import type { Difficulty } from "@/game/track";
 
 export const Route = createFileRoute("/")({
@@ -52,6 +54,7 @@ function Game() {
   const [muted, setMutedState] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [showOptions, setShowOptions] = useState(false);
+  const [music, setMusicState] = useState(true);
 
   useEffect(() => {
     setBest(loadBestTime());
@@ -60,6 +63,9 @@ function Game() {
     const m = loadMuted();
     setMutedState(m);
     setMuted(m);
+    const mus = loadMusic();
+    setMusicState(mus);
+    setMusicEnabled(mus);
   }, []);
 
   const handleFinish = useCallback(
@@ -72,9 +78,19 @@ function Game() {
       if (beat) setBest(time);
       if (didWin) setRaces((r) => r + 1);
       setScreen("result");
+      if (didWin) sfx.win();
+      else sfx.lose();
     },
     [best],
   );
+
+  const toggleMusic = () => {
+    const next = !music;
+    setMusicState(next);
+    setMusicEnabled(next);
+    saveMusic(next);
+    sfx.click();
+  };
 
   const go = (s: Screen) => {
     sfx.click();
@@ -135,7 +151,9 @@ function Game() {
       {showOptions && (
         <OptionsDialog
           muted={muted}
+          music={music}
           difficulty={difficulty}
+          onToggleMusic={toggleMusic}
           onToggleSound={toggleSound}
           onPickLevel={pickLevel}
           onClose={() => {
@@ -241,14 +259,18 @@ function StartScreen({
 
 function OptionsDialog({
   muted,
+  music,
   difficulty,
   onToggleSound,
+  onToggleMusic,
   onPickLevel,
   onClose,
 }: {
   muted: boolean;
+  music: boolean;
   difficulty: Difficulty;
   onToggleSound: () => void;
+  onToggleMusic: () => void;
   onPickLevel: (id: Difficulty) => void;
   onClose: () => void;
 }) {
@@ -290,6 +312,17 @@ function OptionsDialog({
         </button>
 
         <p className="mt-6 text-xs font-black uppercase tracking-widest text-muted-foreground">
+          Music
+        </p>
+        <button
+          onClick={onToggleMusic}
+          className="font-display mt-3 w-full rounded-2xl border-4 border-border bg-secondary px-4 py-3 text-xl text-secondary-foreground shadow-toy transition hover:-translate-y-0.5"
+        >
+          {music ? "🎵 Music ON" : "🎵 Music OFF"}
+        </button>
+
+
+        <p className="mt-6 text-xs font-black uppercase tracking-widest text-muted-foreground">
           Controls
         </p>
         <ul className="mt-3 space-y-1 text-left text-sm font-bold text-foreground">
@@ -304,6 +337,50 @@ function OptionsDialog({
           <BigButton onClick={onClose}>✔ DONE</BigButton>
         </div>
       </div>
+    </div>
+  );
+}
+
+const CONFETTI_COLORS = [
+  "var(--construction)",
+  "var(--nitro)",
+  "var(--grass)",
+  "var(--sky)",
+  "var(--primary)",
+];
+
+function Confetti() {
+  const bits = useMemo(
+    () =>
+      Array.from({ length: 70 }, (_, i) => ({
+        i,
+        left: Math.random() * 100,
+        drift: `${(Math.random() - 0.5) * 220}px`,
+        delay: Math.random() * 1.2,
+        dur: 2.4 + Math.random() * 1.8,
+        size: 7 + Math.random() * 9,
+        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length]!,
+        round: i % 3 === 0,
+      })),
+    [],
+  );
+  return (
+    <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden" aria-hidden="true">
+      {bits.map((b) => (
+        <span
+          key={b.i}
+          className="absolute top-0 block"
+          style={{
+            left: `${b.left}%`,
+            width: b.size,
+            height: b.size * 1.6,
+            background: b.color,
+            borderRadius: b.round ? "9999px" : "2px",
+            ["--drift" as string]: b.drift,
+            animation: `confetti-fall ${b.dur}s linear ${b.delay}s infinite`,
+          }}
+        />
+      ))}
     </div>
   );
 }
@@ -325,8 +402,12 @@ function ResultScreen({
 }) {
   return (
     <Card>
-      <h1 className="font-display text-4xl text-foreground sm:text-6xl">
-        {won ? "🏁 YOU WIN!" : "🚧 RIVAL WON!"}
+      {won && <Confetti />}
+      <h1
+        className="font-display text-5xl text-foreground sm:text-7xl"
+        style={{ animation: "win-pop 0.6s cubic-bezier(0.2,1.4,0.5,1) both" }}
+      >
+        {won ? "🏁 YOU WIN!" : "🚧 OOPS! RIVAL WON"}
       </h1>
       <p className="font-display mt-6 text-3xl text-foreground sm:text-5xl">
         Your Time: {time.toFixed(1)}s
@@ -338,7 +419,26 @@ function ResultScreen({
           Best: {best === null ? "—" : `${best.toFixed(1)}s`}
         </p>
       )}
-      <Roller />
+      {won ? (
+        <div
+          className="mx-auto my-6 select-none text-[8rem] leading-none drop-shadow-[0_18px_18px_rgba(0,0,0,0.25)] sm:text-[11rem]"
+          style={{ animation: "jcb-cheer 0.9s ease-in-out infinite" }}
+        >
+          🚜
+        </div>
+      ) : (
+        <div className="my-6">
+          <div
+            className="mx-auto select-none text-[6rem] leading-none sm:text-[8rem]"
+            style={{ animation: "oops-wobble 1s ease-in-out infinite" }}
+          >
+            🚜💨
+          </div>
+          <p className="font-display mt-2 text-2xl text-construction-foreground/70">
+            Shake it off — try again!
+          </p>
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-center gap-4">
         <BigButton onClick={onAgain}>▶ PLAY AGAIN</BigButton>
         <BigButton tone="soft" onClick={onHome}>
