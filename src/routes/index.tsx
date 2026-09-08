@@ -1,16 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import GameCanvas from "@/components/game/GameCanvas";
 import {
   loadBestTime,
   loadDifficulty,
+  loadMusic,
   loadMuted,
   loadRaces,
   saveDifficulty,
+  saveMusic,
   saveMuted,
   saveResult,
 } from "@/game/storage";
-import { sfx, setMuted } from "@/game/audio";
+import { sfx, setMuted, setMusicEnabled } from "@/game/audio";
 import type { Difficulty } from "@/game/track";
 
 export const Route = createFileRoute("/")({
