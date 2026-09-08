@@ -312,6 +312,17 @@ function OptionsDialog({
         </button>
 
         <p className="mt-6 text-xs font-black uppercase tracking-widest text-muted-foreground">
+          Music
+        </p>
+        <button
+          onClick={onToggleMusic}
+          className="font-display mt-3 w-full rounded-2xl border-4 border-border bg-secondary px-4 py-3 text-xl text-secondary-foreground shadow-toy transition hover:-translate-y-0.5"
+        >
+          {music ? "🎵 Music ON" : "🎵 Music OFF"}
+        </button>
+
+
+        <p className="mt-6 text-xs font-black uppercase tracking-widest text-muted-foreground">
           Controls
         </p>
         <ul className="mt-3 space-y-1 text-left text-sm font-bold text-foreground">
