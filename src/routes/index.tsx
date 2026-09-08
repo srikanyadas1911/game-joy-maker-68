@@ -259,14 +259,18 @@ function StartScreen({
 
 function OptionsDialog({
   muted,
+  music,
   difficulty,
   onToggleSound,
+  onToggleMusic,
   onPickLevel,
   onClose,
 }: {
   muted: boolean;
+  music: boolean;
   difficulty: Difficulty;
   onToggleSound: () => void;
+  onToggleMusic: () => void;
   onPickLevel: (id: Difficulty) => void;
   onClose: () => void;
 }) {
