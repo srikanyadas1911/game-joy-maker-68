@@ -341,6 +341,50 @@ function OptionsDialog({
   );
 }
 
+const CONFETTI_COLORS = [
+  "var(--construction)",
+  "var(--nitro)",
+  "var(--grass)",
+  "var(--sky)",
+  "var(--primary)",
+];
+
+function Confetti() {
+  const bits = useMemo(
+    () =>
+      Array.from({ length: 70 }, (_, i) => ({
+        i,
+        left: Math.random() * 100,
+        drift: `${(Math.random() - 0.5) * 220}px`,
+        delay: Math.random() * 1.2,
+        dur: 2.4 + Math.random() * 1.8,
+        size: 7 + Math.random() * 9,
+        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length]!,
+        round: i % 3 === 0,
+      })),
+    [],
+  );
+  return (
+    <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden" aria-hidden="true">
+      {bits.map((b) => (
+        <span
+          key={b.i}
+          className="absolute top-0 block"
+          style={{
+            left: `${b.left}%`,
+            width: b.size,
+            height: b.size * 1.6,
+            background: b.color,
+            borderRadius: b.round ? "9999px" : "2px",
+            ["--drift" as string]: b.drift,
+            animation: `confetti-fall ${b.dur}s linear ${b.delay}s infinite`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function ResultScreen({
   time,
   best,
