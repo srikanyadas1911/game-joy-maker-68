@@ -54,6 +54,7 @@ function Game() {
   const [muted, setMutedState] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [showOptions, setShowOptions] = useState(false);
+  const [music, setMusicState] = useState(true);
 
   useEffect(() => {
     setBest(loadBestTime());
@@ -62,6 +63,9 @@ function Game() {
     const m = loadMuted();
     setMutedState(m);
     setMuted(m);
+    const mus = loadMusic();
+    setMusicState(mus);
+    setMusicEnabled(mus);
   }, []);
 
   const handleFinish = useCallback(
@@ -74,9 +78,19 @@ function Game() {
       if (beat) setBest(time);
       if (didWin) setRaces((r) => r + 1);
       setScreen("result");
+      if (didWin) sfx.win();
+      else sfx.lose();
     },
     [best],
   );
+
+  const toggleMusic = () => {
+    const next = !music;
+    setMusicState(next);
+    setMusicEnabled(next);
+    saveMusic(next);
+    sfx.click();
+  };
 
   const go = (s: Screen) => {
     sfx.click();
