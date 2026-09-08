@@ -151,7 +151,9 @@ function Game() {
       {showOptions && (
         <OptionsDialog
           muted={muted}
+          music={music}
           difficulty={difficulty}
+          onToggleMusic={toggleMusic}
           onToggleSound={toggleSound}
           onPickLevel={pickLevel}
           onClose={() => {
