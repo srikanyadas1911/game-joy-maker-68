@@ -358,8 +358,12 @@ function ResultScreen({
 }) {
   return (
     <Card>
-      <h1 className="font-display text-4xl text-foreground sm:text-6xl">
-        {won ? "🏁 YOU WIN!" : "🚧 RIVAL WON!"}
+      {won && <Confetti />}
+      <h1
+        className="font-display text-5xl text-foreground sm:text-7xl"
+        style={{ animation: "win-pop 0.6s cubic-bezier(0.2,1.4,0.5,1) both" }}
+      >
+        {won ? "🏁 YOU WIN!" : "🚧 OOPS! RIVAL WON"}
       </h1>
       <p className="font-display mt-6 text-3xl text-foreground sm:text-5xl">
         Your Time: {time.toFixed(1)}s
@@ -371,7 +375,26 @@ function ResultScreen({
           Best: {best === null ? "—" : `${best.toFixed(1)}s`}
         </p>
       )}
-      <Roller />
+      {won ? (
+        <div
+          className="mx-auto my-6 select-none text-[8rem] leading-none drop-shadow-[0_18px_18px_rgba(0,0,0,0.25)] sm:text-[11rem]"
+          style={{ animation: "jcb-cheer 0.9s ease-in-out infinite" }}
+        >
+          🚜
+        </div>
+      ) : (
+        <div className="my-6">
+          <div
+            className="mx-auto select-none text-[6rem] leading-none sm:text-[8rem]"
+            style={{ animation: "oops-wobble 1s ease-in-out infinite" }}
+          >
+            🚜💨
+          </div>
+          <p className="font-display mt-2 text-2xl text-construction-foreground/70">
+            Shake it off — try again!
+          </p>
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-center gap-4">
         <BigButton onClick={onAgain}>▶ PLAY AGAIN</BigButton>
         <BigButton tone="soft" onClick={onHome}>
