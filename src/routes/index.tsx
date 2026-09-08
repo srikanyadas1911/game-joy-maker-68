@@ -88,6 +88,7 @@ function Game() {
 
   const go = (s: Screen) => {
     sfx.click();
+    setMusicEnabled(music && !muted);
     setScreen(s);
   };
 
