@@ -5,12 +5,15 @@ import {
   loadBestTime,
   loadDifficulty,
   loadMuted,
+  loadMusic,
   loadRaces,
   saveDifficulty,
   saveMuted,
+  saveMusic,
   saveResult,
 } from "@/game/storage";
-import { sfx, setMuted } from "@/game/audio";
+import { sfx, setMuted, setMusicEnabled, stopMusic } from "@/game/audio";
+import Confetti from "@/components/game/Confetti";
 import type { Difficulty } from "@/game/track";
 
 export const Route = createFileRoute("/")({
@@ -51,6 +54,7 @@ function Game() {
   const [won, setWon] = useState(true);
   const [muted, setMutedState] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
+  const [music, setMusicState] = useState(true);
   const [showOptions, setShowOptions] = useState(false);
 
   useEffect(() => {
@@ -58,8 +62,11 @@ function Game() {
     setRaces(loadRaces());
     setDifficulty(loadDifficulty());
     const m = loadMuted();
+    const mu = loadMusic();
     setMutedState(m);
+    setMusicState(mu);
     setMuted(m);
+    setMusicEnabled(mu && !m);
   }, []);
 
   const handleFinish = useCallback(
@@ -69,6 +76,9 @@ function Game() {
       setLastTime(time);
       setIsBest(beat);
       setWon(didWin);
+      stopMusic();
+      if (didWin) sfx.win();
+      else sfx.lose();
       if (beat) setBest(time);
       if (didWin) setRaces((r) => r + 1);
       setScreen("result");
@@ -86,7 +96,16 @@ function Game() {
     setMutedState(next);
     setMuted(next);
     saveMuted(next);
+    setMusicEnabled(music && !next);
     if (!next) sfx.click();
+  };
+
+  const toggleMusic = () => {
+    const next = !music;
+    setMusicState(next);
+    saveMusic(next);
+    setMusicEnabled(next && !muted);
+    sfx.click();
   };
 
   const pickLevel = (id: Difficulty) => {
@@ -135,8 +154,10 @@ function Game() {
       {showOptions && (
         <OptionsDialog
           muted={muted}
+          music={music}
           difficulty={difficulty}
           onToggleSound={toggleSound}
+          onToggleMusic={toggleMusic}
           onPickLevel={pickLevel}
           onClose={() => {
             sfx.click();
@@ -241,14 +262,18 @@ function StartScreen({
 
 function OptionsDialog({
   muted,
+  music,
   difficulty,
   onToggleSound,
+  onToggleMusic,
   onPickLevel,
   onClose,
 }: {
   muted: boolean;
+  music: boolean;
   difficulty: Difficulty;
   onToggleSound: () => void;
+  onToggleMusic: () => void;
   onPickLevel: (id: Difficulty) => void;
   onClose: () => void;
 }) {
@@ -290,6 +315,16 @@ function OptionsDialog({
         </button>
 
         <p className="mt-6 text-xs font-black uppercase tracking-widest text-muted-foreground">
+          Music
+        </p>
+        <button
+          onClick={onToggleMusic}
+          className="font-display mt-3 w-full rounded-2xl border-4 border-border bg-secondary px-4 py-3 text-xl text-secondary-foreground shadow-toy transition hover:-translate-y-0.5"
+        >
+          {music ? "🎵 Music ON" : "🎶 Music OFF"}
+        </button>
+
+        <p className="mt-6 text-xs font-black uppercase tracking-widest text-muted-foreground">
           Controls
         </p>
         <ul className="mt-3 space-y-1 text-left text-sm font-bold text-foreground">
@@ -325,8 +360,11 @@ function ResultScreen({
 }) {
   return (
     <Card>
-      <h1 className="font-display text-4xl text-foreground sm:text-6xl">
-        {won ? "🏁 YOU WIN!" : "🚧 RIVAL WON!"}
+      {won && <Confetti />}
+      <h1
+        className={`font-display text-4xl text-foreground sm:text-6xl ${won ? "animate-cheer" : ""}`}
+      >
+        {won ? "🏁 YOU WIN!" : "🚧 OOPS! RIVAL WON!"}
       </h1>
       <p className="font-display mt-6 text-3xl text-foreground sm:text-5xl">
         Your Time: {time.toFixed(1)}s
@@ -338,7 +376,18 @@ function ResultScreen({
           Best: {best === null ? "—" : `${best.toFixed(1)}s`}
         </p>
       )}
-      <Roller />
+      <div
+        className={`mx-auto my-6 select-none text-[8rem] leading-none drop-shadow-[0_18px_18px_rgba(0,0,0,0.25)] sm:text-[11rem] ${
+          won ? "animate-bob" : "animate-oops"
+        }`}
+      >
+        {won ? "🚜🏆" : "🚜💨"}
+      </div>
+      {!won && (
+        <p className="font-display mb-4 animate-bounce text-2xl text-foreground">
+          Shake it off — TRY AGAIN!
+        </p>
+      )}
       <div className="flex flex-wrap items-center justify-center gap-4">
         <BigButton onClick={onAgain}>▶ PLAY AGAIN</BigButton>
         <BigButton tone="soft" onClick={onHome}>
