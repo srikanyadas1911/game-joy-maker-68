@@ -41,3 +41,14 @@ export function loadMuted(): boolean {
 export function saveMuted(v: boolean) {
   if (typeof window !== "undefined") window.localStorage.setItem(KEY_MUTED, v ? "1" : "0");
 }
+
+const KEY_MUSIC = "jcb_music";
+
+export function loadMusic(): boolean {
+  if (typeof window === "undefined") return true;
+  return window.localStorage.getItem(KEY_MUSIC) !== "0";
+}
+
+export function saveMusic(v: boolean) {
+  if (typeof window !== "undefined") window.localStorage.setItem(KEY_MUSIC, v ? "1" : "0");
+}
