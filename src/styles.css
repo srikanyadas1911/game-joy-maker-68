@@ -31,9 +31,6 @@
   --shadow-glow: var(--shadow-glow);
   --animate-shake: shake 0.12s linear infinite;
   --animate-bob: bob 2.4s ease-in-out infinite;
-  --animate-confetti: confetti-fall linear forwards;
-  --animate-cheer: cheer 0.9s ease-in-out infinite;
-  --animate-oops: oops 1.4s ease-in-out infinite;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
