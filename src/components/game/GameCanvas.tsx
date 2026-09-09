@@ -173,15 +173,6 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
         car.speed *= 0.9;
       }
 
-      // --- lap progress ---
-      const ang = trackAngle(car.x, car.y);
-      let d = ang - lastAngle;
-      if (d > Math.PI) d -= Math.PI * 2;
-      if (d < -Math.PI) d += Math.PI * 2;
-      progress += d;
-      lastAngle = ang;
-      const lap = Math.min(TRACK.laps, Math.floor(progress / (Math.PI * 2)) + 1);
-
       // --- bot ---
       if (!finished) botProgress += botOmega * dt;
       const botAng = START_ANGLE + botProgress;
@@ -195,9 +186,38 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
       };
       const botHeading = Math.atan2(botNext.y - botPos.y, botNext.x - botPos.x);
 
+      // --- solid collision: rollers can never overlap ---
+      const RADIUS = 40; // hitbox radius of each roller
+      const dx = car.x - botPos.x;
+      const dy = car.y - botPos.y;
+      const dist = Math.hypot(dx, dy) || 0.001;
+      if (dist < RADIUS * 2) {
+        const nxr = dx / dist;
+        const nyr = dy / dist;
+        const overlap = RADIUS * 2 - dist;
+        // push the player fully out of the rival (rival stays on its rail)
+        car.x += nxr * overlap;
+        car.y += nyr * overlap;
+        // kill the speed component driving into the rival + a bounce
+        const into = Math.cos(car.heading) * -nxr + Math.sin(car.heading) * -nyr;
+        if (into > 0) car.speed *= 0.35;
+        else car.speed *= 0.8;
+        if (shakeRef.current < 0.4) shakeRef.current = 0.4;
+      }
+
+      // --- lap progress (measured after collision so it never jumps) ---
+      const ang = trackAngle(car.x, car.y);
+      let d = ang - lastAngle;
+      if (d > Math.PI) d -= Math.PI * 2;
+      if (d < -Math.PI) d += Math.PI * 2;
+      progress = Math.max(0, progress + d);
+      lastAngle = ang;
+      const lap = Math.min(TRACK.laps, Math.floor(progress / (Math.PI * 2)) + 1);
+
+      // --- finish line: crossing the start/finish after TRACK.laps laps ---
       const goal = Math.PI * 2 * TRACK.laps;
       if (!finished && (progress >= goal || botProgress >= goal)) {
-        finished = true;
+        finished = true; // freezes the timer
         stopEngine();
         sfx.finish();
         onFinish(time, progress >= goal);
