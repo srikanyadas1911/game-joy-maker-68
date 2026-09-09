@@ -63,25 +63,45 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
     sfx.vroom();
 
     const keys = new Set<string>();
+    // normalise every key event to a stable token so layout / IME quirks
+    // can never swallow a letter key (D was dropping out on some keyboards)
+    const tokens = (e: KeyboardEvent) => {
+      const out: string[] = [];
+      if (e.code) out.push(e.code);
+      if (e.key) {
+        const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+        out.push(k);
+        if (k.length === 1 && k >= "a" && k <= "z") out.push(`Key${k.toUpperCase()}`);
+      }
+      if (e.key === " " || e.code === "Space") out.push("Space");
+      return out;
+    };
+    const has = (...names: string[]) => names.some((n) => keys.has(n));
     const held = {
-      up: () => keys.has("ArrowUp") || keys.has("KeyW") || touch.current.up,
-      down: () => keys.has("ArrowDown") || keys.has("KeyS") || touch.current.down,
-      left: () => keys.has("ArrowLeft") || keys.has("KeyA") || touch.current.left,
-      right: () => keys.has("ArrowRight") || keys.has("KeyD") || touch.current.right,
-      nitro: () => keys.has("Space") || touch.current.nitro,
+      up: () => has("ArrowUp", "KeyW") || touch.current.up,
+      down: () => has("ArrowDown", "KeyS") || touch.current.down,
+      left: () => has("ArrowLeft", "KeyA") || touch.current.left,
+      right: () => has("ArrowRight", "KeyD") || touch.current.right,
+      nitro: () => has("Space") || touch.current.nitro,
     };
     const down = (e: KeyboardEvent) => {
+      const t = tokens(e);
       if (
-        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) ||
-        e.code === "Space"
+        t.includes("ArrowUp") ||
+        t.includes("ArrowDown") ||
+        t.includes("ArrowLeft") ||
+        t.includes("ArrowRight") ||
+        t.includes("Space")
       )
         e.preventDefault();
-      if (e.code === "KeyH" && !keys.has("KeyH")) sfx.horn();
-      keys.add(e.code);
+      if (t.includes("KeyH") && !keys.has("KeyH")) sfx.horn();
+      t.forEach((n) => keys.add(n));
     };
-    const up = (e: KeyboardEvent) => keys.delete(e.code);
+    const up = (e: KeyboardEvent) => tokens(e).forEach((n) => keys.delete(n));
+    const blur = () => keys.clear();
     window.addEventListener("keydown", down, { passive: false });
     window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
 
     const start = centerlinePoint(Math.cos(START_ANGLE) * TRACK.a, Math.sin(START_ANGLE) * TRACK.b);
     const car = {
@@ -153,15 +173,6 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
         car.speed *= 0.9;
       }
 
-      // --- lap progress ---
-      const ang = trackAngle(car.x, car.y);
-      let d = ang - lastAngle;
-      if (d > Math.PI) d -= Math.PI * 2;
-      if (d < -Math.PI) d += Math.PI * 2;
-      progress += d;
-      lastAngle = ang;
-      const lap = Math.min(TRACK.laps, Math.floor(progress / (Math.PI * 2)) + 1);
-
       // --- bot ---
       if (!finished) botProgress += botOmega * dt;
       const botAng = START_ANGLE + botProgress;
@@ -175,9 +186,38 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
       };
       const botHeading = Math.atan2(botNext.y - botPos.y, botNext.x - botPos.x);
 
+      // --- solid collision: rollers can never overlap ---
+      const RADIUS = 40; // hitbox radius of each roller
+      const dx = car.x - botPos.x;
+      const dy = car.y - botPos.y;
+      const dist = Math.hypot(dx, dy) || 0.001;
+      if (dist < RADIUS * 2) {
+        const nxr = dx / dist;
+        const nyr = dy / dist;
+        const overlap = RADIUS * 2 - dist;
+        // push the player fully out of the rival (rival stays on its rail)
+        car.x += nxr * overlap;
+        car.y += nyr * overlap;
+        // kill the speed component driving into the rival + a bounce
+        const into = Math.cos(car.heading) * -nxr + Math.sin(car.heading) * -nyr;
+        if (into > 0) car.speed *= 0.35;
+        else car.speed *= 0.8;
+        if (shakeRef.current < 0.4) shakeRef.current = 0.4;
+      }
+
+      // --- lap progress (measured after collision so it never jumps) ---
+      const ang = trackAngle(car.x, car.y);
+      let d = ang - lastAngle;
+      if (d > Math.PI) d -= Math.PI * 2;
+      if (d < -Math.PI) d += Math.PI * 2;
+      progress = Math.max(0, progress + d);
+      lastAngle = ang;
+      const lap = Math.min(TRACK.laps, Math.floor(progress / (Math.PI * 2)) + 1);
+
+      // --- finish line: crossing the start/finish after TRACK.laps laps ---
       const goal = Math.PI * 2 * TRACK.laps;
       if (!finished && (progress >= goal || botProgress >= goal)) {
-        finished = true;
+        finished = true; // freezes the timer
         stopEngine();
         sfx.finish();
         onFinish(time, progress >= goal);
@@ -218,6 +258,7 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
     };
   }, [onFinish, difficulty]);
 
