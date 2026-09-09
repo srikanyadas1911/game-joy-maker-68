@@ -63,25 +63,45 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
     sfx.vroom();
 
     const keys = new Set<string>();
+    // normalise every key event to a stable token so layout / IME quirks
+    // can never swallow a letter key (D was dropping out on some keyboards)
+    const tokens = (e: KeyboardEvent) => {
+      const out: string[] = [];
+      if (e.code) out.push(e.code);
+      if (e.key) {
+        const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+        out.push(k);
+        if (k.length === 1 && k >= "a" && k <= "z") out.push(`Key${k.toUpperCase()}`);
+      }
+      if (e.key === " " || e.code === "Space") out.push("Space");
+      return out;
+    };
+    const has = (...names: string[]) => names.some((n) => keys.has(n));
     const held = {
-      up: () => keys.has("ArrowUp") || keys.has("KeyW") || touch.current.up,
-      down: () => keys.has("ArrowDown") || keys.has("KeyS") || touch.current.down,
-      left: () => keys.has("ArrowLeft") || keys.has("KeyA") || touch.current.left,
-      right: () => keys.has("ArrowRight") || keys.has("KeyD") || touch.current.right,
-      nitro: () => keys.has("Space") || touch.current.nitro,
+      up: () => has("ArrowUp", "KeyW") || touch.current.up,
+      down: () => has("ArrowDown", "KeyS") || touch.current.down,
+      left: () => has("ArrowLeft", "KeyA") || touch.current.left,
+      right: () => has("ArrowRight", "KeyD") || touch.current.right,
+      nitro: () => has("Space") || touch.current.nitro,
     };
     const down = (e: KeyboardEvent) => {
+      const t = tokens(e);
       if (
-        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) ||
-        e.code === "Space"
+        t.includes("ArrowUp") ||
+        t.includes("ArrowDown") ||
+        t.includes("ArrowLeft") ||
+        t.includes("ArrowRight") ||
+        t.includes("Space")
       )
         e.preventDefault();
-      if (e.code === "KeyH" && !keys.has("KeyH")) sfx.horn();
-      keys.add(e.code);
+      if (t.includes("KeyH") && !keys.has("KeyH")) sfx.horn();
+      t.forEach((n) => keys.add(n));
     };
-    const up = (e: KeyboardEvent) => keys.delete(e.code);
+    const up = (e: KeyboardEvent) => tokens(e).forEach((n) => keys.delete(n));
+    const blur = () => keys.clear();
     window.addEventListener("keydown", down, { passive: false });
     window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
 
     const start = centerlinePoint(Math.cos(START_ANGLE) * TRACK.a, Math.sin(START_ANGLE) * TRACK.b);
     const car = {
