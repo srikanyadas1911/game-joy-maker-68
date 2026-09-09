@@ -258,6 +258,7 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
     };
   }, [onFinish, difficulty]);
 
