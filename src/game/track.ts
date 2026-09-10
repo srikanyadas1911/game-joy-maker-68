@@ -15,7 +15,7 @@ export const CAR = {
   nitroMultiplier: 1.85,
   drag: 0.85,
   brake: 420,
-  steer: 2.5,
+  steer: 1.5,
 };
 
 export const NITRO = {
@@ -64,9 +64,10 @@ export const DECOR = [
 
 export type Difficulty = "easy" | "medium" | "hard";
 
-/** Bot roller pace, in pixels per second along the centerline. */
+/** Bot roller pace, in pixels per second along the centerline.
+ *  Rival is ~30% slower than the player so the kid can win. */
 export const BOT_SPEED: Record<Difficulty, number> = {
-  easy: 140,
-  medium: 195,
-  hard: 245,
+  easy: 98,
+  medium: 137,
+  hard: 172,
 };
