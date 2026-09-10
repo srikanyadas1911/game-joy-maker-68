@@ -19,7 +19,7 @@ type Props = {
   difficulty: Difficulty;
 };
 
-type Hud = { time: number; lap: number; nitro: number; boosting: boolean; speed: number; ahead: boolean };
+type Hud = { time: number; lap: number; nitro: number; boosting: boolean; speed: number; ahead: boolean; onGrass: boolean };
 
 const PALETTE = {
   grass: "#5fbf52",
@@ -49,6 +49,7 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
     boosting: false,
     speed: 0,
     ahead: true,
+    onGrass: false,
   });
   const shakeRef = useRef(0);
 
@@ -146,7 +147,7 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
       else nitroCharge = Math.min(1, nitroCharge + dt / NITRO.cooldown);
 
       const boost = nitroLeft > 0 ? CAR.nitroMultiplier : 1;
-      const grip = onTrack(car.x, car.y) ? 1 : 0.45;
+      const grip = onTrack(car.x, car.y) ? 1 : 0.4;
 
       if (held.up()) car.speed += CAR.accel * boost * grip * dt;
       else if (held.down()) {
@@ -252,6 +253,7 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
         boosting: nitroLeft > 0,
         speed: car.speed,
         ahead: progress >= botProgress,
+        onGrass: !onTrack(car.x, car.y),
       });
 
       draw(ctx, canvas, car, smoke, nitroLeft > 0, { ...botPos, heading: botHeading });
@@ -334,6 +336,13 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
             </p>
           </div>
         </div>
+
+        {hud.onGrass && (
+          <div className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2 rounded-3xl bg-destructive/90 px-6 py-4 text-destructive-foreground shadow-toy animate-bob">
+            <span className="text-4xl">⬆️</span>
+            <p className="font-display text-xl leading-none">Stay on black road!</p>
+          </div>
+        )}
       </div>
 
       {/* touch controls */}
