@@ -131,7 +131,10 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
       prev = now;
       if (!finished) time += dt;
 
-      // --- input ---
+      // --- input (frozen once the race is over) ---
+      if (finished) {
+        car.speed = 0;
+      } else {
       const boosting = nitroLeft > 0;
       if (held.nitro() && !boosting && nitroCharge >= 1) {
         nitroLeft = NITRO.duration;
@@ -172,6 +175,8 @@ export default function GameCanvas({ onFinish, difficulty }: Props) {
         car.y = ny + (c.y - ny) * 0.14;
         car.speed *= 0.9;
       }
+      }
+
 
       // --- bot ---
       if (!finished) botProgress += botOmega * dt;
